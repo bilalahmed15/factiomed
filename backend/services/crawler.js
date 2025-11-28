@@ -38,9 +38,168 @@ async function fetchSitemapUrls(siteUrl) {
   return [];
 }
 
+// Extract contact information from HTML (before removing footer/header)
+function extractContactInfo(html) {
+  const $ = cheerio.load(html);
+  const contactInfo = {
+    phone: [],
+    email: [],
+    address: [],
+    openingHours: [],
+    links: []
+  };
+  
+  // Extract phone numbers - look for Swiss phone patterns (+41 or 0xx)
+  const phoneRegex = /(\+41\s?\d{1,2}\s?\d{3}\s?\d{2}\s?\d{2}|0\d{1,2}\s?\d{3}\s?\d{2}\s?\d{2}|\+?\d{1,4}[\s\-\.]?\(?\d{1,4}\)?[\s\-\.]?\d{1,4}[\s\-\.]?\d{1,9}[\s\-\.]?\d{1,9})/g;
+  const bodyText = $('body').text();
+  const phoneMatches = bodyText.match(phoneRegex);
+  if (phoneMatches) {
+    phoneMatches.forEach(phone => {
+      const cleanPhone = phone.trim().replace(/\s+/g, ' ');
+      // Filter out numbers that are too short or look like years/dates
+      if (cleanPhone.length >= 8 && cleanPhone.length <= 20 && 
+          !cleanPhone.match(/^\d{4}$/) && // Not a year
+          !contactInfo.phone.includes(cleanPhone)) {
+        contactInfo.phone.push(cleanPhone);
+      }
+    });
+  }
+  
+  // Extract email addresses
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  $('body').text().match(emailRegex)?.forEach(email => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!contactInfo.email.includes(cleanEmail)) {
+      contactInfo.email.push(cleanEmail);
+    }
+  });
+  
+  // Extract addresses - look for Swiss address patterns
+  // Pattern 1: Street name + number + postal code + city
+  const addressPattern1 = /([A-ZÄÖÜ][a-zäöüß]+(?:strasse|gasse|weg|platz|allee|ring|weg)\s+\d+[a-z]?)[^.]*(\d{4}\s+[A-ZÄÖÜ][a-zäöüß]+)/gi;
+  // Pattern 2: CH-XXXX City format
+  const addressPattern2 = /CH\s*-\s*\d{4}\s+[A-ZÄÖÜ][a-zäöüß]+/gi;
+  // Pattern 3: Street name with number, postal code, city in proximity
+  const addressPattern3 = /(Langgrütstrasse|Bahnhofstrasse|Hauptstrasse|Seestrasse|Bergstrasse)[^.]{0,50}(\d{4}\s+[A-ZÄÖÜ][a-zäöüß]+|Zürich|Zurich|Basel|Bern|Genf|Geneva)/gi;
+  
+  [addressPattern1, addressPattern2, addressPattern3].forEach(pattern => {
+    const matches = bodyText.match(pattern);
+    if (matches) {
+      matches.forEach(addr => {
+        const cleanAddr = addr.trim().replace(/\s+/g, ' ');
+        if (cleanAddr.length > 10 && cleanAddr.length < 200 && 
+            !contactInfo.address.includes(cleanAddr)) {
+          contactInfo.address.push(cleanAddr);
+        }
+      });
+    }
+  });
+  
+  // Also look for structured address blocks
+  $('[class*="address"], [id*="address"], [class*="contact"], [id*="contact"], [class*="location"], [id*="location"]').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text().trim();
+    // Check if this looks like an address (contains street, postal code pattern)
+    if (text.match(/\d{4}\s+[A-ZÄÖÜ][a-zäöüß]+/) && text.length > 15 && text.length < 200) {
+      const cleanAddr = text.replace(/\s+/g, ' ').trim();
+      if (!contactInfo.address.includes(cleanAddr)) {
+        contactInfo.address.push(cleanAddr);
+      }
+    }
+  });
+  
+  // Extract opening hours - look for common patterns
+  // Pattern 1: Day name + time range
+  const hoursPattern1 = /(Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)[^.]{0,100}(\d{1,2}[:.]\d{2}|\d{1,2})\s*(Uhr|AM|PM|am|pm|bis|to|-|–)\s*(\d{1,2}[:.]\d{2}|\d{1,2})/gi;
+  // Pattern 2: Opening hours heading + time
+  const hoursPattern2 = /(Öffnungszeiten|opening hours|business hours|hours|Heures d'ouverture)[^.]{0,150}(\d{1,2}[:.]\d{2}|\d{1,2})\s*(Uhr|AM|PM|am|pm|bis|to|-|–)\s*(\d{1,2}[:.]\d{2}|\d{1,2})/gi;
+  // Pattern 3: Time range format (08:00 - 18:00)
+  const hoursPattern3 = /\d{1,2}[:.]\d{2}\s*(Uhr|AM|PM|am|pm)?\s*(bis|to|-|–)\s*\d{1,2}[:.]\d{2}\s*(Uhr|AM|PM|am|pm)/gi;
+  // Pattern 4: Monday-Friday format
+  const hoursPattern4 = /(Montag|Monday)[^.]{0,50}(bis|to|-|–)[^.]{0,50}(Freitag|Friday)[^.]{0,100}(\d{1,2}[:.]\d{2}|\d{1,2})\s*(Uhr|AM|PM|am|pm|bis|to|-|–)\s*(\d{1,2}[:.]\d{2}|\d{1,2})/gi;
+  
+  [hoursPattern1, hoursPattern2, hoursPattern3, hoursPattern4].forEach(pattern => {
+    const matches = bodyText.match(pattern);
+    if (matches) {
+      matches.forEach(hours => {
+        const cleanHours = hours.trim().replace(/\s+/g, ' ');
+        if (cleanHours.length > 5 && cleanHours.length < 150 && 
+            !contactInfo.openingHours.includes(cleanHours)) {
+          contactInfo.openingHours.push(cleanHours);
+        }
+      });
+    }
+  });
+  
+  // Also check specific sections that might contain hours
+  $('[class*="hours"], [id*="hours"], [class*="öffnung"], [id*="öffnung"], [class*="opening"], [id*="opening"]').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text().trim();
+    // Look for time patterns in these sections
+    if (text.match(/\d{1,2}[:.]\d{2}/) && text.length > 10 && text.length < 300) {
+      const cleanHours = text.replace(/\s+/g, ' ').trim();
+      if (!contactInfo.openingHours.includes(cleanHours)) {
+        contactInfo.openingHours.push(cleanHours);
+      }
+    }
+  });
+  
+  // Extract contact-related links
+  $('a[href^="mailto:"], a[href^="tel:"], a[href*="contact"], a[href*="kontakt"]').each((i, el) => {
+    const href = $(el).attr('href');
+    const text = $(el).text().trim();
+    if (href && !contactInfo.links.some(l => l.href === href)) {
+      contactInfo.links.push({ href, text });
+    }
+  });
+  
+  // Also check footer and contact sections before they're removed
+  $('footer, [class*="contact"], [class*="kontakt"], [id*="contact"], [id*="kontakt"]').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text();
+    
+    // Extract phone from this section
+    text.match(phoneRegex)?.forEach(phone => {
+      const cleanPhone = phone.trim().replace(/\s+/g, ' ');
+      if (cleanPhone.length >= 8 && cleanPhone.length <= 20 && 
+          !cleanPhone.match(/^\d{4}$/) && 
+          !contactInfo.phone.includes(cleanPhone)) {
+        contactInfo.phone.push(cleanPhone);
+      }
+    });
+    
+    // Extract email from this section
+    text.match(emailRegex)?.forEach(email => {
+      const cleanEmail = email.trim().toLowerCase();
+      if (!contactInfo.email.includes(cleanEmail)) {
+        contactInfo.email.push(cleanEmail);
+      }
+    });
+    
+    // Extract address from this section using the same patterns
+    [addressPattern1, addressPattern2, addressPattern3].forEach(pattern => {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach(addr => {
+          const cleanAddr = addr.trim().replace(/\s+/g, ' ');
+          if (cleanAddr.length > 10 && cleanAddr.length < 200 && 
+              !contactInfo.address.includes(cleanAddr)) {
+            contactInfo.address.push(cleanAddr);
+          }
+        });
+      }
+    });
+  });
+  
+  return contactInfo;
+}
+
 // Extract text content from HTML
 function extractText(html, url) {
   const $ = cheerio.load(html);
+  
+  // Extract contact information BEFORE removing footer/header
+  const contactInfo = extractContactInfo(html);
   
   // Get title and h1 BEFORE removing elements
   const title = $('title').text().trim() || $('h1').first().text().trim() || '';
@@ -116,6 +275,36 @@ function extractText(html, url) {
     }
   });
   
+  // Strategy 5: If still no paragraphs, extract from ANY div with substantial text
+  if (paragraphs.length === 0) {
+    mainContent.find('div').each((i, el) => {
+      const $el = $(el);
+      const text = $el.text().trim();
+      // Only take divs that have substantial text but aren't too long
+      // And don't have many child divs (to avoid taking parent containers)
+      const childDivs = $el.find('div').length;
+      if (text.length > 50 && text.length < 2000 && childDivs < 5) {
+        paragraphs.push(text);
+      }
+    });
+  }
+  
+  // Strategy 6: Last resort - extract all text from body and split intelligently
+  if (paragraphs.length === 0) {
+    const allBodyText = $('body').text().trim();
+    if (allBodyText.length > 100) {
+      // Split by sentences (period, exclamation, question mark followed by space)
+      const sentences = allBodyText.split(/([.!?]\s+)/).filter(s => s.trim().length > 20);
+      // Group sentences into paragraphs (every 2-3 sentences)
+      for (let i = 0; i < sentences.length; i += 3) {
+        const para = sentences.slice(i, i + 3).join(' ').trim();
+        if (para.length > 30 && para.length < 1000) {
+          paragraphs.push(para);
+        }
+      }
+    }
+  }
+  
   // Remove duplicates and very similar entries
   const uniqueParagraphs = [];
   const seen = new Set();
@@ -144,7 +333,8 @@ function extractText(html, url) {
     paragraphs: uniqueParagraphs,
     altTexts,
     metaDescription,
-    url
+    url,
+    contactInfo // Include extracted contact information
   };
 }
 
@@ -180,6 +370,27 @@ function chunkText(content, maxChunkSize = 800, overlap = 150) {
     });
   }
   
+  // Add contact information if available
+  if (content.contactInfo) {
+    const ci = content.contactInfo;
+    if (ci.phone && ci.phone.length > 0) {
+      fullText += '\nContact Phone: ';
+      fullText += ci.phone.join(', ') + '\n';
+    }
+    if (ci.email && ci.email.length > 0) {
+      fullText += 'Contact Email: ';
+      fullText += ci.email.join(', ') + '\n';
+    }
+    if (ci.address && ci.address.length > 0) {
+      fullText += 'Address: ';
+      fullText += ci.address.join(' | ') + '\n';
+    }
+    if (ci.openingHours && ci.openingHours.length > 0) {
+      fullText += 'Opening Hours: ';
+      fullText += ci.openingHours.join(' | ') + '\n';
+    }
+  }
+  
   // Split into words for chunking
   const words = fullText.split(/\s+/);
   
@@ -208,9 +419,19 @@ function chunkText(content, maxChunkSize = 800, overlap = 150) {
     });
   }
   
+  // More lenient: if we have ANY text at all (even just title), create a chunk
+  if (chunks.length === 0 && fullText.trim().length > 10) {
+    chunks.push({
+      text: fullText.trim(),
+      index: 0,
+      startWord: 0,
+      headingPath: content.headings[0] || content.title || content.h1 || 'Untitled'
+    });
+  }
+  
   // Debug: log if no chunks created
   if (chunks.length === 0) {
-    console.log(`Warning: No chunks created for ${content.url}. Text length: ${fullText.trim().length}`);
+    console.log(`Warning: No chunks created. Text length: ${fullText.trim().length}, Title: ${content.title || 'none'}, Paragraphs: ${content.paragraphs.length}`);
   }
   
   return chunks;
@@ -228,11 +449,33 @@ async function ensureModelLoaded() {
   }
   
   try {
-    const llmService = (await import('./llm.js')).default;
+    // Import the LLM service - it exports { default: LLMService } or { openai }
+    const llmModule = await import('./llm.js');
+    const llmService = llmModule.default || new llmModule.LLMService();
     const modelName = process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text';
     console.log('Ensuring embedding model is loaded before processing...');
     
-    const loaded = await llmService.preloadEmbeddingModel(modelName, 5);
+    // Try to use ensureModelLoaded if available, otherwise use preloadEmbeddingModel
+    let loaded = false;
+    if (llmService.ensureModelLoaded) {
+      loaded = await llmService.ensureModelLoaded(modelName);
+    } else if (llmService.preloadEmbeddingModel) {
+      loaded = await llmService.preloadEmbeddingModel(modelName, 5);
+    } else {
+      // Fallback: just try a test embedding
+      console.log('No model loading method found, attempting test embedding...');
+      try {
+        await openai.embeddings.create({
+          model: modelName,
+          input: 'test'
+        });
+        loaded = true;
+      } catch (e) {
+        console.log('Test embedding failed, but continuing anyway...');
+        loaded = true; // Continue anyway
+      }
+    }
+    
     if (loaded) {
       modelPreloaded = true;
       console.log('✓ Embedding model ready for processing');
@@ -240,10 +483,15 @@ async function ensureModelLoaded() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return true;
     }
-    return false;
+    // Even if loading failed, continue - the queue will handle retries
+    console.log('⚠️  Model loading uncertain, but continuing with processing...');
+    modelPreloaded = true; // Mark as "attempted" to avoid repeated failures
+    return true;
   } catch (error) {
     console.error('Error ensuring model is loaded:', error);
-    return false;
+    // Continue anyway - the embedding queue will handle errors
+    modelPreloaded = true;
+    return true;
   }
 }
 
@@ -507,15 +755,39 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
           // If page has HTML but extraction failed, try a fallback extraction
           console.log(`  ⚠️  Minimal extraction, trying fallback...`);
           const $ = cheerio.load(html);
+          
+          // Remove script, style, nav, footer before extracting
+          $('script, style, nav, footer, header, [class*="cookie"], [class*="banner"], [class*="menu"], [class*="navigation"]').remove();
+          
           const bodyText = $('body').text().trim();
-          if (bodyText.length > 100) {
-            // Add the body text as a paragraph
-            content.paragraphs.push(bodyText.substring(0, 2000)); // Limit to 2000 chars
-            console.log(`  ✓ Fallback: Added body text (${bodyText.length} chars)`);
+          if (bodyText.length > 50) {
+            // Split body text into sentences/paragraphs
+            const sentences = bodyText.split(/[.!?]\s+/).filter(s => s.trim().length > 30);
+            sentences.forEach(s => {
+              const clean = s.trim().replace(/\s+/g, ' ');
+              if (clean.length > 30 && clean.length < 1000) {
+                content.paragraphs.push(clean);
+              }
+            });
+            console.log(`  ✓ Fallback: Added ${sentences.length} sentences from body text (${bodyText.length} total chars)`);
+          }
+          
+          // Also try to get headings if we don't have any
+          if (content.headings.length === 0) {
+            $('h1, h2, h3, h4, h5, h6').each((i, el) => {
+              const headingText = $(el).text().trim();
+              if (headingText && headingText.length > 0 && headingText.length < 200) {
+                content.headings.push(headingText);
+              }
+            });
+            if (content.headings.length > 0) {
+              console.log(`  ✓ Fallback: Found ${content.headings.length} headings`);
+            }
           }
         }
         
-        if (hasContent) {
+        // Accept page if we have ANY content indicators
+        if (hasContent || hasExtractedContent) {
           results.push({ url, content });
           console.log(`  ✓ SUCCESS: Added page with ${content.paragraphs.length} paragraphs, ${content.headings.length} headings`);
           
@@ -549,9 +821,134 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
   
   console.log(`Crawled ${results.length} pages with content`);
   
+  // Collect all contact information from all pages
+  const allContactInfo = {
+    phone: new Set(),
+    email: new Set(),
+    address: new Set(),
+    openingHours: new Set(),
+    links: []
+  };
+  
+  results.forEach(({ content }) => {
+    if (content.contactInfo) {
+      content.contactInfo.phone?.forEach(p => allContactInfo.phone.add(p));
+      content.contactInfo.email?.forEach(e => allContactInfo.email.add(e));
+      content.contactInfo.address?.forEach(a => allContactInfo.address.add(a));
+      content.contactInfo.openingHours?.forEach(h => allContactInfo.openingHours.add(h));
+      content.contactInfo.links?.forEach(l => {
+        if (!allContactInfo.links.some(existing => existing.href === l.href)) {
+          allContactInfo.links.push(l);
+        }
+      });
+    }
+  });
+  
+  // Create a comprehensive contact information chunk
+  if (allContactInfo.phone.size > 0 || allContactInfo.email.size > 0 || 
+      allContactInfo.address.size > 0 || allContactInfo.openingHours.size > 0) {
+    console.log('\n📞 Extracted contact information:');
+    console.log(`   Phones: ${Array.from(allContactInfo.phone).join(', ')}`);
+    console.log(`   Emails: ${Array.from(allContactInfo.email).join(', ')}`);
+    console.log(`   Addresses: ${Array.from(allContactInfo.address).join(' | ')}`);
+    console.log(`   Opening Hours: ${Array.from(allContactInfo.openingHours).join(' | ')}`);
+    console.log(`   Links: ${allContactInfo.links.length}`);
+    
+    // Create contact information text for embedding
+    let contactText = 'Kontaktinformationen / Contact Information / Informations de contact\n\n';
+    
+    if (allContactInfo.address.size > 0) {
+      contactText += 'Adresse / Address / Adresse:\n';
+      Array.from(allContactInfo.address).forEach(addr => {
+        contactText += `- ${addr}\n`;
+      });
+      contactText += '\n';
+    }
+    
+    if (allContactInfo.phone.size > 0) {
+      contactText += 'Telefon / Phone / Téléphone:\n';
+      Array.from(allContactInfo.phone).forEach(phone => {
+        contactText += `- ${phone}\n`;
+      });
+      contactText += '\n';
+    }
+    
+    if (allContactInfo.email.size > 0) {
+      contactText += 'E-Mail / Email:\n';
+      Array.from(allContactInfo.email).forEach(email => {
+        contactText += `- ${email}\n`;
+      });
+      contactText += '\n';
+    }
+    
+    if (allContactInfo.openingHours.size > 0) {
+      contactText += 'Öffnungszeiten / Opening Hours / Heures d\'ouverture:\n';
+      Array.from(allContactInfo.openingHours).forEach(hours => {
+        contactText += `- ${hours}\n`;
+      });
+      contactText += '\n';
+    }
+    
+    if (allContactInfo.links.length > 0) {
+      contactText += 'Links:\n';
+      allContactInfo.links.forEach(link => {
+        contactText += `- ${link.text || link.href}: ${link.href}\n`;
+      });
+    }
+    
+    // Store contact information as a special chunk
+    const contactChunkId = createHash('sha256')
+      .update('functiomed-contact-information')
+      .digest('hex');
+    
+    try {
+      const contactEmbedding = await createEmbedding(contactText);
+      
+      // Check if contact chunk already exists
+      const existingContact = db.prepare('SELECT id FROM knowledge_chunks WHERE id = ?').get(contactChunkId);
+      
+      if (existingContact) {
+        db.prepare(`
+          UPDATE knowledge_chunks 
+          SET page_title = ?, chunk_text = ?, embedding = ?, heading_path = ?, url = ?, updated_at = ?
+          WHERE id = ?
+        `).run(
+          'Kontaktinformationen Functiomed',
+          contactText,
+          JSON.stringify(contactEmbedding),
+          'contact-information',
+          'https://functiomed.ch',
+          new Date().toISOString(),
+          contactChunkId
+        );
+        console.log('✓ Updated contact information chunk');
+      } else {
+        db.prepare(`
+          INSERT INTO knowledge_chunks 
+          (id, url, page_title, heading_path, chunk_text, chunk_index, embedding, metadata)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          contactChunkId,
+          'https://functiomed.ch',
+          'Kontaktinformationen Functiomed',
+          'contact-information',
+          contactText,
+          0,
+          JSON.stringify(contactEmbedding),
+          JSON.stringify({ type: 'contact_info', extracted: true })
+        );
+        console.log('✓ Created contact information chunk');
+      }
+    } catch (error) {
+      console.error('Error creating contact information chunk:', error);
+    }
+  }
+  
   // Process and store chunks
   let totalChunks = 0;
   let chunksProcessed = 0;
+  let chunksSkipped = 0;
+  let totalChunksProcessed = 0;
   
   console.log(`\nProcessing ${results.length} pages into chunks...`);
   
@@ -561,14 +958,48 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
   console.log('Starting chunk processing...\n');
   
   for (const { url, content } of results) {
+    // Debug: Log what content we have
+    console.log(`  📄 Content for ${url}:`);
+    console.log(`     Title: ${content.title || 'none'}`);
+    console.log(`     H1: ${content.h1 || 'none'}`);
+    console.log(`     Headings: ${content.headings.length}`);
+    console.log(`     Paragraphs: ${content.paragraphs.length}`);
+    console.log(`     Meta: ${content.metaDescription ? 'yes' : 'no'}`);
+    
+    // If we have minimal content, try to extract more aggressively
+    if (content.paragraphs.length === 0 && content.headings.length === 0) {
+      console.log(`     ⚠️  No paragraphs or headings found, trying aggressive extraction...`);
+      // Try to get any text from the page
+      // This should have been done in extractText, but let's add a fallback
+    }
+    
     const chunks = chunkText(content);
     
     if (chunks.length === 0) {
       console.log(`  ⚠️  No chunks created for ${url}`);
-      continue;
+      console.log(`     Debug: fullText would be ~${(content.title?.length || 0) + (content.h1?.length || 0) + (content.paragraphs.join(' ').length || 0)} chars`);
+      // Create a minimal chunk even if extraction was poor
+      if (content.title || content.h1 || content.metaDescription) {
+        const minimalText = `${content.title || ''}\n${content.h1 || ''}\n${content.metaDescription || ''}`.trim();
+        if (minimalText.length > 10) {
+          console.log(`     Creating minimal chunk from available content...`);
+          chunks.push({
+            text: minimalText,
+            index: 0,
+            startWord: 0,
+            headingPath: content.title || content.h1 || 'Untitled'
+          });
+        }
+      }
+      
+      if (chunks.length === 0) {
+        console.log(`     ✗ Skipping - no usable content`);
+        continue;
+      }
     }
     
-    console.log(`  Processing ${url}: ${chunks.length} chunks`);
+    console.log(`  ✓ Processing ${url}: ${chunks.length} chunks`);
+    totalChunksProcessed += chunks.length;
     
     for (const chunk of chunks) {
       const chunkId = createHash('sha256')
@@ -604,7 +1035,7 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
           
           // Progress indicator
           if (chunksProcessed % 10 === 0) {
-            console.log(`    ... processed ${chunksProcessed} chunks so far`);
+            console.log(`    ... processed ${chunksProcessed} new chunks so far`);
           }
           
           // Note: Delay is handled by the embedding queue
@@ -615,11 +1046,20 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
         }
       } else {
         // Chunk already exists, skip
+        chunksSkipped++;
       }
     }
   }
   
-  console.log(`\n✅ Stored ${totalChunks} new chunks from ${results.length} pages`);
+  // Get total chunks in database
+  const totalInDb = db.prepare('SELECT COUNT(*) as count FROM knowledge_chunks').get().count;
+  
+  console.log(`\n📊 Chunk Processing Summary:`);
+  console.log(`   Total chunks processed: ${totalChunksProcessed}`);
+  console.log(`   New chunks stored: ${totalChunks}`);
+  console.log(`   Chunks skipped (already exist): ${chunksSkipped}`);
+  console.log(`   Total chunks in database: ${totalInDb}`);
+  console.log(`\n✅ Crawl completed: ${results.length} pages processed`);
   
   // Extract doctors and services from crawled content
   console.log('\n📋 Extracting doctors and services from website...');
@@ -630,6 +1070,12 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
     console.error('⚠️  Error extracting doctors/services:', error.message);
   }
   
-  return { pages: results.length, chunks: totalChunks };
+  return { 
+    pages: results.length, 
+    chunks: totalChunks,
+    chunksProcessed: totalChunksProcessed,
+    chunksSkipped: chunksSkipped,
+    totalInDatabase: totalInDb
+  };
 }
 

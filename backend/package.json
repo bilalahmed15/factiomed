@@ -8,10 +8,13 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "crawl": "node scripts/crawl-site.js",
-    "init-db": "node scripts/init-db.js"
+    "init-db": "node scripts/init-db.js",
+    "embed-all": "node scripts/embedAllContent.js",
+    "embed-training-rules": "node scripts/embedTrainingRules.js",
+    "fix-urls": "node scripts/fixInternalUrls.js",
+    "test": "node tests/chatbot.test.js"
   },
   "dependencies": {
-    "@elevenlabs/elevenlabs-js": "^2.21.0",
     "bullmq": "^5.3.1",
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
@@ -22,7 +25,7 @@
     "lowdb": "^7.0.1",
     "multer": "^1.4.5-lts.1",
     "node-fetch": "^3.3.2",
-    "openai": "^4.20.1",
+    "form-data": "^4.0.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

@@ -99,17 +99,33 @@ function MessageList({ messages, isTyping = false, onQuickReply = null, bookingS
             {message.sources && message.sources.length > 0 && (
               <div className="message-sources">
                 <span className="sources-label">Learn more:</span>
-                {message.sources.slice(0, 3).map((source, idx) => (
-                  <a
-                    key={idx}
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="source-link"
-                  >
-                    {source.title || source.url}
-                  </a>
-                ))}
+                {message.sources
+                  .filter(source => {
+                    // Filter out internal URLs or convert them to website URL
+                    if (source.url && source.url.startsWith('internal://')) {
+                      return false; // Don't show internal URLs
+                    }
+                    return true;
+                  })
+                  .slice(0, 3)
+                  .map((source, idx) => {
+                    // Convert internal URLs to website URL if needed
+                    let url = source.url;
+                    if (url && url.startsWith('internal://')) {
+                      url = 'https://functiomed.ch';
+                    }
+                    return (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="source-link"
+                      >
+                        {source.title || url}
+                      </a>
+                    );
+                  })}
               </div>
             )}
             {/* Show calendar if this is a date selection step and we have available dates */}

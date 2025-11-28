@@ -178,7 +178,7 @@ async function detectDoctorServiceQuery(message) {
 // Chat endpoint
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, sessionId } = req.body;
+    const { message, sessionId, preferredLanguage } = req.body;
     const actualSessionId = getOrCreateSession(sessionId);
     
     // Get conversation history for context
@@ -204,10 +204,15 @@ app.post('/api/chat', async (req, res) => {
     const queryIntent = await classifyQueryIntent(message, conversationHistory);
     console.log('Query intent classification:', queryIntent);
     
+    // Use preferred language from frontend, or detect from user message
+    const { detectLanguage } = await import('./services/rag.js');
+    const userLanguage = preferredLanguage || detectLanguage(message);
+    console.log(`User language: ${userLanguage} (${preferredLanguage ? 'selected by user' : 'auto-detected'})`);
+
     // If query is informational, skip recommendation checks and go directly to RAG
     if (queryIntent === 'informational') {
       console.log('Informational query detected, using RAG...');
-      const result = await generateRAGResponse(message, actualSessionId);
+      const result = await generateRAGResponse(message, actualSessionId, userLanguage);
       return res.json({
         response: result.response,
         sources: result.sources,
@@ -219,7 +224,7 @@ app.post('/api/chat', async (req, res) => {
     const isProblemDescription = await detectProblemDescription(message, conversationHistory);
     if (isProblemDescription) {
       console.log('Problem description detected, generating recommendations...');
-      const recommendationResult = await generateRecommendationResponse(message, actualSessionId, conversationHistory);
+      const recommendationResult = await generateRecommendationResponse(message, actualSessionId, conversationHistory, userLanguage);
       
       if (recommendationResult) {
         console.log('Recommendation generated successfully');
@@ -260,9 +265,20 @@ app.post('/api/chat', async (req, res) => {
             .map((d, idx) => `${idx + 1}. ${d.name}`)
             .join('\n');
           
-          const response = queryInfo.serviceName 
-            ? `Here are the doctors available for ${queryInfo.serviceName}:\n\n${doctorList}`
-            : `Here are our doctors:\n\n${doctorList}`;
+          // Language-specific responses
+          const responses = {
+            en: queryInfo.serviceName 
+              ? `Here are the doctors available for ${queryInfo.serviceName}:\n\n${doctorList}`
+              : `Here are our doctors:\n\n${doctorList}`,
+            de: queryInfo.serviceName
+              ? `Hier sind die Ärzte, die für ${queryInfo.serviceName} verfügbar sind:\n\n${doctorList}`
+              : `Hier sind unsere Ärzte:\n\n${doctorList}`,
+            fr: queryInfo.serviceName
+              ? `Voici les médecins disponibles pour ${queryInfo.serviceName}:\n\n${doctorList}`
+              : `Voici nos médecins:\n\n${doctorList}`
+          };
+          
+          const response = responses[userLanguage] || responses.en;
           
           console.log('Returning doctor list response');
           return res.json({
@@ -277,8 +293,16 @@ app.post('/api/chat', async (req, res) => {
       if (queryInfo.isServiceQuery) {
         const services = getServices();
         const serviceList = services.slice(0, 10).map((s, idx) => `${idx + 1}. ${s.name}`).join('\n');
+        
+        // Language-specific responses
+        const responses = {
+          en: `Here are our services:\n\n${serviceList}`,
+          de: `Hier sind unsere Dienstleistungen:\n\n${serviceList}`,
+          fr: `Voici nos services:\n\n${serviceList}`
+        };
+        
         return res.json({
-          response: `Here are our services:\n\n${serviceList}`,
+          response: responses[userLanguage] || responses.en,
           sources: [],
           sessionId: actualSessionId
         });
@@ -286,7 +310,7 @@ app.post('/api/chat', async (req, res) => {
     }
     
     // Regular RAG response
-    const result = await generateRAGResponse(message, actualSessionId);
+    const result = await generateRAGResponse(message, actualSessionId, userLanguage);
     
     res.json({
       response: result.response,
@@ -299,70 +323,61 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Text-to-Speech endpoint - STREAMING for faster response
+// Text-to-Speech endpoint using FishSpeech
 app.post('/api/text-to-speech', async (req, res) => {
   try {
-    const { text, voiceId } = req.body;
+    const { text, voiceRef, language } = req.body;
     
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'Text is required' });
     }
 
-    if (!process.env.ELEVENLABS_API_KEY) {
+    if (!process.env.REPLICATE_API_TOKEN) {
       return res.status(500).json({ 
-        error: 'ElevenLabs API key not configured', 
-        details: 'Please add ELEVENLABS_API_KEY to your .env file' 
+        error: 'Replicate API token not configured', 
+        details: 'Please add REPLICATE_API_TOKEN to your .env file. Get your token from https://replicate.com/account/api-tokens' 
       });
     }
 
-    // Stream audio chunks as they arrive from ElevenLabs
-    // Send headers immediately to start streaming faster
-    res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.writeHead(200); // Send headers immediately
+    // Detect language from text if not provided
+    const { detectLanguage } = await import('./services/rag.js');
+    const detectedLang = language || detectLanguage(text).substring(0, 2); // Get 2-letter code (en, de, fr)
     
+    // Map language codes to FishSpeech supported codes
+    const langMap = {
+      'en': 'en',
+      'de': 'de', 
+      'fr': 'fr',
+      'es': 'es',
+      'it': 'it',
+      'pt': 'pt',
+      'ja': 'ja',
+      'zh': 'zh',
+      'ko': 'ko',
+      'ar': 'ar',
+      'ru': 'ru',
+      'nl': 'nl',
+      'pl': 'pl'
+    };
+    const fishSpeechLang = langMap[detectedLang] || 'en';
+
     try {
-      const { ElevenLabsClient } = await import('@elevenlabs/elevenlabs-js');
-      const elevenlabs = new ElevenLabsClient({
-        apiKey: process.env.ELEVENLABS_API_KEY
-      });
-
-      const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
+      const { textToSpeech } = await import('./services/textToSpeech.js');
       
-      // Clean up text
-      const cleanText = text
-        .replace(/#{1,6}\s*/g, '')
-        .replace(/\*\*/g, '')
-        .replace(/\*/g, '')
-        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim();
-
-      // Stream audio directly to response - flush immediately for faster response
-      const audioStream = await elevenlabs.textToSpeech.convert(voiceId || DEFAULT_VOICE_ID, {
-        text: cleanText,
-        model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.0,
-          use_speaker_boost: false
-        }
-      });
-
-      // Pipe chunks directly to response (streaming) - flush each chunk immediately
-      for await (const chunk of audioStream) {
-        res.write(chunk);
-        // Force flush to send chunk immediately (Node.js buffers by default)
-        if (typeof res.flush === 'function') {
-          res.flush();
-        }
-      }
+      console.log(`🎤 Generating speech with FishSpeech (language: ${fishSpeechLang})...`);
       
-      res.end();
+      // Generate audio using FishSpeech
+      const audioBuffer = await textToSpeech(text, voiceRef, fishSpeechLang);
+
+      // Set appropriate headers for WAV audio
+      res.setHeader('Content-Type', 'audio/wav');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Content-Length', audioBuffer.length);
+      
+      // Send audio buffer
+      res.send(audioBuffer);
     } catch (error) {
-      console.error('ElevenLabs streaming error:', error);
+      console.error('FishSpeech TTS error:', error);
       if (!res.headersSent) {
         res.status(500).json({ error: 'Failed to generate speech', details: error.message });
       } else {

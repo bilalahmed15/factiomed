@@ -10,14 +10,33 @@ const API_BASE = '/api';
 
 function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
+  // Detect browser language for welcome message
+  const getBrowserLanguage = () => {
+    const lang = navigator.language || navigator.userLanguage || 'en';
+    if (lang.startsWith('de')) return 'de';
+    if (lang.startsWith('fr')) return 'fr';
+    return 'en';
+  };
+
+  const browserLang = getBrowserLanguage();
+  const welcomeMessages = {
+    en: "Hi there! 👋 I'm FIONA, your friendly assistant at Functiomed. I'm here to help you with anything you need - whether it's finding information about our services, doctors, or answering your questions. What can I help you with today?",
+    de: "Hallo! 👋 Ich bin FIONA, Ihre freundliche Assistentin bei Functiomed. Ich bin hier, um Ihnen bei allem zu helfen, was Sie brauchen - ob es darum geht, Informationen über unsere Dienstleistungen, Ärzte zu finden oder Ihre Fragen zu beantworten. Womit kann ich Ihnen heute helfen?",
+    fr: "Bonjour ! 👋 Je suis FIONA, votre assistante amicale chez Functiomed. Je suis là pour vous aider avec tout ce dont vous avez besoin - que ce soit pour trouver des informations sur nos services, nos médecins ou répondre à vos questions. En quoi puis-je vous aider aujourd'hui ?"
+  };
+
+  // Language selector state - must be declared before messages state
+  const [selectedLanguage, setSelectedLanguage] = useState(browserLang);
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       type: 'bot',
-      text: "Hi there! 👋 I'm Amali, your friendly assistant at Functiomed. I'm here to help you with anything you need - whether it's finding information about our services, doctors, or answering your questions. What can I help you with today?",
+      text: welcomeMessages[selectedLanguage] || welcomeMessages.en,
       timestamp: new Date()
     }
   ]);
+
   const [sessionId, setSessionId] = useState(null);
   const [showTranscriptUpload, setShowTranscriptUpload] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -25,6 +44,21 @@ function ChatWidget() {
   const [hasPendingAudio, setHasPendingAudio] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false); // Track if bot is currently speaking
   const [userInteracted, setUserInteracted] = useState(false);
+
+  // Update welcome message when language changes
+  useEffect(() => {
+    setMessages(prevMessages => {
+      const welcomeMsg = prevMessages.find(m => m.id === 'welcome');
+      if (welcomeMsg && welcomeMsg.text !== welcomeMessages[selectedLanguage]) {
+        return prevMessages.map(m => 
+          m.id === 'welcome' 
+            ? { ...m, text: welcomeMessages[selectedLanguage] || welcomeMessages.en }
+            : m
+        );
+      }
+      return prevMessages;
+    });
+  }, [selectedLanguage]);
   const messagesEndRef = useRef(null);
   const audioRef = useRef(null);
   const pendingAudioRef = useRef(null); // Track pending audio that couldn't play due to autoplay
@@ -62,7 +96,7 @@ function ChatWidget() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: welcomeMessage.text })
+        body: JSON.stringify({ text: welcomeMessage.text, language: selectedLanguage })
       })
         .then(response => {
           if (!response.ok) {
@@ -275,7 +309,7 @@ function ChatWidget() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, language: selectedLanguage })
       });
 
       // Check again if voice was disabled during API call
@@ -322,7 +356,8 @@ function ChatWidget() {
       }
 
       // Create complete blob from all chunks
-      const blob = new Blob(chunks, { type: 'audio/mpeg' });
+      // FishSpeech returns WAV format, not MP3
+      const blob = new Blob(chunks, { type: 'audio/wav' });
       
       if (blob.size === 0) {
         console.error('Empty audio response');
@@ -419,8 +454,8 @@ function ChatWidget() {
     } catch (error) {
       console.error('Text-to-speech error:', error);
       
-      if (error.message?.includes('API key')) {
-        alert('ElevenLabs API key not configured. Please add ELEVENLABS_API_KEY to your backend .env file.');
+      if (error.message?.includes('API key') || error.message?.includes('token')) {
+        alert('TTS API not configured. Please add REPLICATE_API_TOKEN to your backend .env file.');
       }
     }
   };
@@ -525,7 +560,8 @@ function ChatWidget() {
     try {
       const response = await axios.post(`${API_BASE}/chat`, {
         message: text,
-        sessionId
+        sessionId,
+        preferredLanguage: selectedLanguage
       });
       
       addMessage(response.data.response, 'bot', response.data.sources, response.data.quickReplies);
@@ -577,10 +613,22 @@ function ChatWidget() {
         <div className="chat-widget">
           <div className="chat-header">
             <div className="chat-header-content">
-              <h3>Functiomed Assistant</h3>
+              <h3>FIONA</h3>
               <span className="status-indicator">● Online</span>
             </div>
             <div className="chat-header-actions">
+              <div className="language-selector">
+                <select 
+                  value={selectedLanguage} 
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="language-select"
+                  title="Select language"
+                >
+                  <option value="en">🇬🇧 English</option>
+                  <option value="de">🇩🇪 Deutsch</option>
+                  <option value="fr">🇫🇷 Français</option>
+                </select>
+              </div>
               <button 
                 className={`voice-toggle ${isVoiceEnabled ? 'active' : ''} ${hasPendingAudio ? 'has-pending' : ''} ${isSpeaking ? 'speaking' : ''}`}
                 onClick={toggleVoice}

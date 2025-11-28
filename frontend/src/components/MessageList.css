@@ -188,7 +188,7 @@
 }
 
 .message-quick-reply-btn:hover {
-  background: var(--primary-color-dark, #0056b3);
+  background: var(--primary-dark);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -202,7 +202,7 @@
 }
 
 .message.bot .message-quick-reply-btn:hover {
-  background: var(--primary-color-dark, #0056b3);
+  background: var(--primary-dark);
 }
 
 /* Date Calendar */
