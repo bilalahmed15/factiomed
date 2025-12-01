@@ -48,13 +48,20 @@ class LLMService {
         requestBody.format = 'json';
       }
 
+      // Add timeout for faster failure (30 seconds for chat)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -158,9 +165,9 @@ class LLMService {
         
         while (retries > 0) {
           try {
-            // Create abort controller for timeout
+            // Create abort controller for timeout (reduced to 15 seconds for faster failure)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for embeddings
             
             const response = await fetch(`${this.baseUrl}/api/embeddings`, {
               method: 'POST',
@@ -179,11 +186,11 @@ class LLMService {
             if (!response.ok) {
               const errorText = await response.text();
               
-              // If it's a 500 error, try preloading the model and retry with longer delay
+              // If it's a 500 error, try preloading the model and retry with shorter delay
               if (response.status === 500 && retries > 1) {
                 console.log(`Embedding model may need loading, attempting preload...`);
                 await this.preloadEmbeddingModel(modelToUse);
-                const delay = Math.pow(2, 3 - retries) * 2000; // Exponential backoff: 2s, 4s, 8s
+                const delay = Math.pow(2, 3 - retries) * 1000; // Reduced exponential backoff: 1s, 2s, 4s
                 await new Promise(resolve => setTimeout(resolve, delay));
                 retries--;
                 continue;
