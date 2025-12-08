@@ -9,6 +9,7 @@ export default defineConfig({
       '/api': {
         target: 'http://3.70.248.124:3001', // EC2 backend
         changeOrigin: true,
+        secure: false, // Allow self-signed certificates if needed
         configure: (proxy, _options) => {
           proxy.on('proxyRes', (proxyRes, req, res) => {
             // Handle binary responses (audio files)

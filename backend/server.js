@@ -17,7 +17,18 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+// CORS configuration - allow Vercel frontend and local development
+app.use(cors({
+  origin: [
+    'https://factiomed.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:5173', // Vite default port
+    /\.vercel\.app$/ // Allow all Vercel preview deployments
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -539,8 +550,10 @@ app.get('/api/admin/knowledge-status', async (req, res) => {
   }
 })();
 
-app.listen(PORT, async () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`Server running on http://0.0.0.0:${PORT} (accessible from all interfaces)`);
+  console.log(`Local access: http://localhost:${PORT}`);
+  console.log(`External access: http://3.70.248.124:${PORT}`);
   
   // Check knowledge base status (but don't auto-crawl)
   setTimeout(async () => {
