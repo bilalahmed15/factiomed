@@ -3,10 +3,11 @@ import * as cheerio from 'cheerio';
 import { writeFileSync, readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { db } from '../config/database.js';
+import { db, lowDb } from '../config/database.js';
 import { extractDoctorsAndServices } from './websiteData.js';
 import { createHash } from 'crypto';
 import { openai } from './llm.js';
+import { detectLanguage } from './rag.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -209,11 +210,12 @@ function extractText(html, url) {
   // Remove script, style, nav, footer, cookie banners, but keep content
   $('script, style, nav, footer, header, [class*="cookie"], [class*="banner"], [class*="menu"], [class*="navigation"]').remove();
   
-  // Get all headings for context (h1-h4) - get them before they might be removed
+  // Get ALL headings for context (h1-h6) - get them before they might be removed
   const headings = [];
   $('h1, h2, h3, h4, h5, h6').each((i, el) => {
     const headingText = $(el).text().trim();
-    if (headingText && headingText.length > 0 && headingText.length < 200) { // Filter out very long headings
+    // Capture ALL headings, even long ones - they might contain important info
+    if (headingText && headingText.length > 0 && headingText.length < 500) { // Increased max length
       headings.push(headingText);
     }
   });
@@ -237,81 +239,130 @@ function extractText(html, url) {
   
   const paragraphs = [];
   
-  // Strategy 1: Get all paragraph elements
+  // Strategy 1: Get ALL paragraph elements (even very short ones - capture everything)
   mainContent.find('p').each((i, el) => {
     const text = $(el).text().trim();
-    if (text.length > 15) {  // Very low threshold
+    if (text.length > 5) {  // Very low threshold - capture even short paragraphs
       paragraphs.push(text);
     }
   });
   
-  // Strategy 2: Get list items
+  // Strategy 2: Get ALL list items (capture everything)
   mainContent.find('li').each((i, el) => {
     const text = $(el).text().trim();
-    if (text.length > 15 && !text.match(/^(Home|About|Services|Contact|Menu|Navigation|Skip to)$/i)) {
+    if (text.length > 5 && !text.match(/^(Home|About|Services|Contact|Menu|Navigation|Skip to|Cookie|Accept|Decline)$/i)) {
       paragraphs.push(text);
     }
   });
   
-  // Strategy 3: Get all text from main content area (be aggressive)
+  // Strategy 3: Get all text from main content area (be VERY aggressive - capture everything)
   const allText = mainContent.text();
-  if (allText.trim().length > 100) {
-    // Split by double newlines or periods to get sentences
-    const sentences = allText.split(/[.\n]{2,}/).filter(s => s.trim().length > 30);
+  if (allText.trim().length > 20) {
+    // Split by sentences, periods, newlines - capture even short snippets
+    const sentences = allText.split(/[.\n!?]+/).filter(s => s.trim().length > 10); // Lower threshold
     sentences.forEach(s => {
       const clean = s.trim().replace(/\s+/g, ' ');
-      if (clean.length > 30 && clean.length < 500) {
+      if (clean.length > 10 && clean.length < 2000) { // Increased max length, lower min
         paragraphs.push(clean);
       }
     });
   }
   
-  // Strategy 4: Extract from divs with content-related classes/IDs
-  mainContent.find('[class*="text"], [class*="content"], [class*="description"], [class*="info"], [id*="content"]').each((i, el) => {
+  // Strategy 4: Extract from divs with content-related classes/IDs (capture everything)
+  mainContent.find('[class*="text"], [class*="content"], [class*="description"], [class*="info"], [id*="content"], [class*="section"], [id*="section"]').each((i, el) => {
     const $el = $(el);
     const text = $el.text().trim();
-    if (text.length > 40 && text.length < 1000) {
+    if (text.length > 10 && text.length < 3000) { // Lower threshold, higher max
       paragraphs.push(text);
     }
   });
   
-  // Strategy 5: If still no paragraphs, extract from ANY div with substantial text
-  if (paragraphs.length === 0) {
-    mainContent.find('div').each((i, el) => {
-      const $el = $(el);
+  // Strategy 5: Extract from ANY div, span, section, article - capture ALL text
+  mainContent.find('div, span, section, article, aside, blockquote, pre').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text().trim();
+    // Be more lenient - capture more content
+    const childElements = $el.children().length;
+    if (text.length > 10 && text.length < 3000 && childElements < 15) { // Lower threshold, higher limits
+      paragraphs.push(text);
+    }
+  });
+  
+  // Strategy 6: Extract from ALL text nodes directly (capture every piece of text)
+  mainContent.find('*').each((i, el) => {
+    const $el = $(el);
+    // Only process leaf nodes (elements with no text children, only direct text)
+    const hasTextChildren = $el.children().filter((idx, child) => {
+      return $(child).text().trim().length > 0;
+    }).length > 0;
+    
+    if (!hasTextChildren) {
       const text = $el.text().trim();
-      // Only take divs that have substantial text but aren't too long
-      // And don't have many child divs (to avoid taking parent containers)
-      const childDivs = $el.find('div').length;
-      if (text.length > 50 && text.length < 2000 && childDivs < 5) {
+      // Capture even very short text snippets
+      if (text.length > 5 && text.length < 500 && !text.match(/^(Home|About|Services|Contact|Menu|Navigation|Skip|Cookie|Accept|Decline|Close|×)$/i)) {
         paragraphs.push(text);
       }
-    });
-  }
+    }
+  });
   
-  // Strategy 6: Last resort - extract all text from body and split intelligently
-  if (paragraphs.length === 0) {
-    const allBodyText = $('body').text().trim();
-    if (allBodyText.length > 100) {
-      // Split by sentences (period, exclamation, question mark followed by space)
-      const sentences = allBodyText.split(/([.!?]\s+)/).filter(s => s.trim().length > 20);
-      // Group sentences into paragraphs (every 2-3 sentences)
-      for (let i = 0; i < sentences.length; i += 3) {
-        const para = sentences.slice(i, i + 3).join(' ').trim();
-        if (para.length > 30 && para.length < 1000) {
-          paragraphs.push(para);
-        }
+  // Strategy 7: Extract from table cells (often contains structured info like CEO, management, etc.)
+  mainContent.find('td, th').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text().trim();
+    if (text.length > 5 && text.length < 1000) { // Lower threshold, higher max
+      paragraphs.push(text);
+    }
+  });
+  
+  // Strategy 8: Extract from definition lists (dl, dt, dd) - often contains structured info
+  mainContent.find('dt, dd').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text().trim();
+    if (text.length > 5 && text.length < 1000) { // Lower threshold, higher max
+      paragraphs.push(text);
+    }
+  });
+  
+  // Strategy 9: Extract from ALL headings (h1-h6) - they often contain important info
+  mainContent.find('h1, h2, h3, h4, h5, h6').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text().trim();
+    if (text.length > 3 && text.length < 500) { // Capture even short headings
+      paragraphs.push(text);
+    }
+  });
+  
+  // Strategy 10: Extract from strong, em, b, i tags - often emphasize important info
+  mainContent.find('strong, em, b, i, mark, small').each((i, el) => {
+    const $el = $(el);
+    const text = $el.text().trim();
+    if (text.length > 3 && text.length < 500) {
+      paragraphs.push(text);
+    }
+  });
+  
+  // Strategy 11: Last resort - extract ALL text from body and split intelligently (capture everything)
+  const allBodyText = $('body').text().trim();
+  if (allBodyText.length > 20) {
+    // Split by sentences, newlines, periods - capture everything
+    const sentences = allBodyText.split(/([.!?\n]+)/).filter(s => s.trim().length > 5); // Lower threshold
+    // Group sentences into paragraphs (every 2-3 sentences) or add individually if short
+    for (let i = 0; i < sentences.length; i += 2) {
+      const para = sentences.slice(i, i + 3).join(' ').trim();
+      if (para.length > 10 && para.length < 2000) { // Lower min, higher max
+        paragraphs.push(para);
       }
     }
   }
   
-  // Remove duplicates and very similar entries
+  // Remove only exact duplicates (keep all similar content to preserve details)
   const uniqueParagraphs = [];
   const seen = new Set();
   paragraphs.forEach(p => {
     // Normalize: remove extra whitespace, lowercase
     const normalized = p.toLowerCase().replace(/\s+/g, ' ').trim();
-    if (!seen.has(normalized) && normalized.length > 15) {
+    // Only skip if EXACT match - keep all variations to preserve details
+    if (!seen.has(normalized) && normalized.length > 3) { // Very low threshold
       seen.add(normalized);
       uniqueParagraphs.push(p);
     }
@@ -326,6 +377,27 @@ function extractText(html, url) {
     }
   });
   
+  // Detect language from content (title, h1, and first few paragraphs)
+  const contentText = `${title} ${h1} ${uniqueParagraphs.slice(0, 3).join(' ')}`;
+  const detectedLang = detectLanguage(contentText);
+  
+  // Also check URL for language hints (/en/ = English, /fr/ = French, default = German)
+  let language = detectedLang;
+  if (url.includes('/en/') || url.includes('/english')) {
+    language = 'en';
+  } else if (url.includes('/fr/') || url.includes('/french') || url.includes('/francais')) {
+    language = 'fr';
+  } else if (url.includes('/de/') || url.includes('/german') || url.includes('/deutsch')) {
+    language = 'de';
+  } else if (detectedLang === 'en' && !url.includes('/en/')) {
+    // If detected as English but URL doesn't indicate English, might be German page with English content
+    // Check if more German indicators
+    const germanIndicators = (contentText.match(/ä|ö|ü|ß/g) || []).length;
+    if (germanIndicators > 2) {
+      language = 'de';
+    }
+  }
+  
   return {
     title: title || 'Untitled',
     h1: h1 || title,
@@ -334,12 +406,13 @@ function extractText(html, url) {
     altTexts,
     metaDescription,
     url,
-    contactInfo // Include extracted contact information
+    contactInfo, // Include extracted contact information
+    language // Include detected language
   };
 }
 
 // Chunk text into smaller pieces
-function chunkText(content, maxChunkSize = 800, overlap = 150) {
+function chunkText(content, maxChunkSize = 1000, overlap = 200) {
   const chunks = [];
   let fullText = '';
   
@@ -351,8 +424,8 @@ function chunkText(content, maxChunkSize = 800, overlap = 150) {
     fullText += `Description: ${content.metaDescription}\n\n`;
   }
   
-  // Add headings as context
-  content.headings.slice(0, 5).forEach(h => {
+  // Add ALL headings as context (not just first 5)
+  content.headings.forEach(h => {
     fullText += `${h}\n`;
   });
   if (content.headings.length > 0) fullText += '\n';
@@ -362,10 +435,10 @@ function chunkText(content, maxChunkSize = 800, overlap = 150) {
     fullText += `${p}\n\n`;
   });
   
-  // Add alt texts if available
+  // Add ALL alt texts if available (not just first 5)
   if (content.altTexts.length > 0) {
     fullText += '\nImages:\n';
-    content.altTexts.slice(0, 5).forEach(alt => {
+    content.altTexts.forEach(alt => {
       fullText += `- ${alt}\n`;
     });
   }
@@ -394,35 +467,36 @@ function chunkText(content, maxChunkSize = 800, overlap = 150) {
   // Split into words for chunking
   const words = fullText.split(/\s+/);
   
-  // Create overlapping chunks
+  // Create overlapping chunks - capture ALL content, even small pieces
   for (let i = 0; i < words.length; i += maxChunkSize - overlap) {
     const chunkWords = words.slice(i, i + maxChunkSize);
     const chunkText = chunkWords.join(' ');
     
-    if (chunkText.trim().length > 100) {
+    // Store ALL chunks, even very short ones - don't filter anything out
+    if (chunkText.trim().length > 10) { // Very low threshold - capture everything
       chunks.push({
         text: chunkText.trim(),
         index: chunks.length,
         startWord: i,
-        headingPath: content.headings.slice(0, 3).join(' → ') || content.title
+        headingPath: content.headings.slice(0, 5).join(' → ') || content.title // Include more headings
       });
     }
   }
   
-  // If we have very few chunks but substantial content, ensure we have at least one chunk
-  if (chunks.length === 0 && fullText.trim().length > 20) {
+  // ALWAYS create at least one chunk if we have ANY text at all
+  if (chunks.length === 0 && fullText.trim().length > 5) {
     chunks.push({
       text: fullText.trim(),
       index: 0,
       startWord: 0,
-      headingPath: content.headings[0] || content.title || 'Untitled'
+      headingPath: content.headings[0] || content.title || content.h1 || 'Untitled'
     });
   }
   
-  // More lenient: if we have ANY text at all (even just title), create a chunk
-  if (chunks.length === 0 && fullText.trim().length > 10) {
+  // If we have content but no chunks were created (shouldn't happen), create one anyway
+  if (chunks.length === 0 && (content.title || content.h1 || content.paragraphs.length > 0)) {
     chunks.push({
-      text: fullText.trim(),
+      text: fullText.trim() || content.title || content.h1 || 'Content',
       index: 0,
       startWord: 0,
       headingPath: content.headings[0] || content.title || content.h1 || 'Untitled'
@@ -605,15 +679,13 @@ async function crawlPage(url) {
     const html = await response.text();
     const content = extractText(html, url);
     
-    // More lenient check - if we have title, headings, or any text, keep it
+    // VERY lenient check - keep ANY page that was successfully fetched
+    // Even if extraction is minimal, we'll still try to create chunks
     const hasContent = content.title || content.h1 || content.headings.length > 0 || 
-                      content.paragraphs.length > 0 || content.metaDescription;
+                      content.paragraphs.length > 0 || content.metaDescription || html.length > 100;
     
-    if (!hasContent) {
-      console.log(`Skipping ${url}: no meaningful content found`);
-      return null;
-    }
-    
+    // Always return content - let chunking decide if it's usable
+    // Don't skip pages - store everything we can extract
     return content;
   } catch (error) {
     console.error(`Error crawling ${url}:`, error.message);
@@ -694,8 +766,9 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
   }
   
   const initialQueueSize = toVisit.size;
-  const maxPagesToCrawl = Math.min(50, initialQueueSize);
-  console.log(`Starting crawl of ${initialQueueSize} URLs (will crawl up to ${maxPagesToCrawl} pages)...\n`);
+  // Crawl ALL pages - no limit to ensure comprehensive coverage
+  const maxPagesToCrawl = initialQueueSize > 0 ? initialQueueSize : 500; // Crawl all pages from sitemap, or up to 500 if discovered
+  console.log(`Starting crawl of ${initialQueueSize} URLs (will crawl up to ${maxPagesToCrawl} pages to capture ALL content)...\n`);
   
   // Crawl pages and discover new links
   let pagesCrawled = 0;
@@ -760,12 +833,12 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
           $('script, style, nav, footer, header, [class*="cookie"], [class*="banner"], [class*="menu"], [class*="navigation"]').remove();
           
           const bodyText = $('body').text().trim();
-          if (bodyText.length > 50) {
-            // Split body text into sentences/paragraphs
-            const sentences = bodyText.split(/[.!?]\s+/).filter(s => s.trim().length > 30);
+          if (bodyText.length > 10) { // Lower threshold - capture more
+            // Split body text into sentences/paragraphs - capture everything
+            const sentences = bodyText.split(/[.!?\n]+/).filter(s => s.trim().length > 5); // Lower threshold
             sentences.forEach(s => {
               const clean = s.trim().replace(/\s+/g, ' ');
-              if (clean.length > 30 && clean.length < 1000) {
+              if (clean.length > 5 && clean.length < 2000) { // Lower min, higher max
                 content.paragraphs.push(clean);
               }
             });
@@ -786,8 +859,9 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
           }
         }
         
-        // Accept page if we have ANY content indicators
-        if (hasContent || hasExtractedContent) {
+        // Accept page if we have ANY content at all - be very lenient
+        // Even if extraction is minimal, store what we have
+        if (hasContent || hasExtractedContent || html.length > 100) {
           results.push({ url, content });
           console.log(`  ✓ SUCCESS: Added page with ${content.paragraphs.length} paragraphs, ${content.headings.length} headings`);
           
@@ -800,11 +874,16 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
             }
           });
         } else {
-          console.log(`  ✗ SKIPPED: No content indicators found`);
-          console.log(`    - Title: ${content?.title || 'none'}`);
-          console.log(`    - H1: ${content?.h1 || 'none'}`);
-          console.log(`    - Headings: ${content?.headings?.length || 0}`);
-          console.log(`    - Paragraphs: ${content?.paragraphs?.length || 0}`);
+          // Even if minimal, try to store something
+          if (html.length > 50) {
+            // Create minimal content from URL or HTML
+            content.title = content.title || url.split('/').pop() || 'Page';
+            content.paragraphs = content.paragraphs.length > 0 ? content.paragraphs : ['Content from ' + url];
+            results.push({ url, content });
+            console.log(`  ⚠ MINIMAL: Stored page with minimal content (${content.paragraphs.length} paragraphs)`);
+          } else {
+            console.log(`  ✗ SKIPPED: Truly no content (HTML length: ${html.length})`);
+          }
         }
         
         pagesCrawled++;
@@ -992,9 +1071,22 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
         }
       }
       
+      // If no chunks created, try to create at least one from whatever we have
       if (chunks.length === 0) {
-        console.log(`     ✗ Skipping - no usable content`);
-        continue;
+        // Create a minimal chunk from title, h1, or first paragraph
+        const minimalText = content.title || content.h1 || content.paragraphs[0] || content.metaDescription || 'Content from ' + url;
+        if (minimalText && minimalText.length > 5) {
+          chunks.push({
+            text: minimalText,
+            index: 0,
+            startWord: 0,
+            headingPath: content.title || content.h1 || 'Untitled'
+          });
+          console.log(`     ⚠ Created minimal chunk from available content`);
+        } else {
+          console.log(`     ✗ Skipping - truly no content available`);
+          continue;
+        }
       }
     }
     
@@ -1014,11 +1106,14 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
           // Create embedding
           const embedding = await createEmbedding(chunk.text);
           
-          // Store in database
+          // Detect language for this chunk (use content language or detect from chunk text)
+          const chunkLanguage = content.language || detectLanguage(chunk.text) || 'en';
+          
+          // Store in database with language field - CRITICAL for proper language filtering
           db.prepare(`
             INSERT INTO knowledge_chunks 
-            (id, url, page_title, heading_path, chunk_text, chunk_index, embedding, metadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (id, url, page_title, heading_path, chunk_text, chunk_index, embedding, metadata, language, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             chunkId,
             url,
@@ -1027,7 +1122,10 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
             chunk.text,
             chunk.index,
             JSON.stringify(embedding),
-            JSON.stringify({ altTexts: content.altTexts || [] })
+            JSON.stringify({ altTexts: content.altTexts || [] }),
+            chunkLanguage, // Store language for proper filtering
+            new Date().toISOString(),
+            new Date().toISOString()
           );
           
           totalChunks++;
@@ -1036,6 +1134,8 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
           // Progress indicator
           if (chunksProcessed % 10 === 0) {
             console.log(`    ... processed ${chunksProcessed} new chunks so far`);
+            // Write to disk every 10 chunks to ensure persistence
+            lowDb.write();
           }
           
           // Note: Delay is handled by the embedding queue
@@ -1051,14 +1151,27 @@ export async function crawlSite(siteUrl = 'https://functiomed.ch') {
     }
   }
   
+  // Final write to ensure all data is persisted
+  lowDb.write();
+  console.log('   ✓ All data written to disk');
+  
   // Get total chunks in database
   const totalInDb = db.prepare('SELECT COUNT(*) as count FROM knowledge_chunks').get().count;
+  
+  // Verify language distribution
+  const langStats = {};
+  const allChunks = db.prepare('SELECT language FROM knowledge_chunks').all();
+  allChunks.forEach(chunk => {
+    const lang = chunk.language || 'unknown';
+    langStats[lang] = (langStats[lang] || 0) + 1;
+  });
   
   console.log(`\n📊 Chunk Processing Summary:`);
   console.log(`   Total chunks processed: ${totalChunksProcessed}`);
   console.log(`   New chunks stored: ${totalChunks}`);
   console.log(`   Chunks skipped (already exist): ${chunksSkipped}`);
   console.log(`   Total chunks in database: ${totalInDb}`);
+  console.log(`   Language distribution:`, langStats);
   console.log(`\n✅ Crawl completed: ${results.length} pages processed`);
   
   // Extract doctors and services from crawled content

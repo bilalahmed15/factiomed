@@ -164,32 +164,303 @@ Zuschlag ausserordentliche Konsultation zusätzlich Fr. 40.-`
     {
       id: "faq_general",
       title: "FAQ – Allgemeine Fragen zur Praxis",
-      content: `Gibt es Parkmöglichkeiten bei functiomed? Ja, es stehen Ihnen kostenlose Parkplätze direkt vor der Praxis zur Verfügung. Zusätzlich befinden sich öffentliche Parkplätze in unmittelbarer Nähe. Wie sind die Öffnungszeiten der Praxis? Unsere regulären Öffnungszeiten sind Montag bis Freitag von 08:00 bis 18:00 Uhr. Termine außerhalb dieser Zeiten sind nach Vereinbarung möglich. Wie kann ich einen Termin vereinbaren? Termine können telefonisch, per E-Mail oder über das Online-Tool auf unserer Webseite vereinbart werden. Welche Sprachen sprechen die Mitarbeitenden? Unser Team spricht Deutsch, Englisch, Französisch und Italienisch und viele mehr. Bitte teilen Sie uns bei Bedarf Ihre bevorzugte Sprache mit.`
+      content: `Allgemeine Fragen zur Praxis
+
+Gibt es Parkmöglichkeiten bei functiomed?
+Ja, es stehen Ihnen kostenlose Parkplätze direkt vor der Praxis zur Verfügung. Zusätzlich befinden sich öffentliche Parkplätze in unmittelbarer Nähe.
+
+Wie sind die Öffnungszeiten der Praxis?
+Unsere regulären Öffnungszeiten sind Montag bis Freitag von 08:00 bis 18:00 Uhr. Termine außerhalb dieser Zeiten sind nach Vereinbarung möglich.
+
+Wie kann ich einen Termin vereinbaren?
+Termine können telefonisch, per E-Mail oder über das Online-Tool auf unserer Webseite vereinbart werden.
+
+Welche Sprachen sprechen die Mitarbeitenden?
+Unser Team spricht Deutsch, Englisch, Französisch und Italienisch und viele mehr. Bitte teilen Sie uns bei Bedarf Ihre bevorzugte Sprache mit.`
     },
     {
       id: "faq_orthopedics",
       title: "FAQ – Orthopädie & Traumatologie / Sportmedizin",
-      content: `Was behandelt die Orthopädie bei functiomed? Die Orthopädie bei functiomed befasst sich mit Erkrankungen und Verletzungen des Bewegungsapparates, einschließlich Knochen, Gelenken, Muskeln und Sehnen. Welche Leistungen bietet die Sportmedizin? Unsere Sportmedizin umfasst Prävention, Diagnose und Behandlung von sportbedingten Verletzungen. Wir unterstützen sowohl Freizeit- als auch Profisportler. Benötige ich eine Überweisung für einen Termin? Nein, Sie können direkt einen Termin bei uns vereinbaren. Eine Überweisung ist nicht zwingend erforderlich ausser Sie sind in einem speziellen Versicherungsmodell, wie z.B. das Hausarztmodell. Werden die Kosten von der Krankenkasse übernommen? Die Kosten für orthopädische und traumatologische Behandlungen werden in der Regel von der Grundversicherung oder Unfallversicherung übernommen.`
+      content: `Orthopädie & Traumatologie / Sportmedizin
+
+Was behandelt die Orthopädie bei functiomed?
+Die Orthopädie bei functiomed befasst sich mit Erkrankungen und Verletzungen des Bewegungsapparates, einschließlich Knochen, Gelenken, Muskeln und Sehnen.
+
+Welche Leistungen bietet die Sportmedizin?
+Unsere Sportmedizin umfasst Prävention, Diagnose und Behandlung von sportbedingten Verletzungen. Wir unterstützen sowohl Freizeit- als auch Profisportler.
+
+Benötige ich eine Überweisung für einen Termin?
+Nein, Sie können direkt einen Termin bei uns vereinbaren. Eine Überweisung ist nicht zwingend erforderlich ausser Sie sind in einem speziellen Versicherungsmodell, wie z.B. das Hausarztmodell.
+
+Werden die Kosten von der Krankenkasse übernommen?
+Die Kosten für orthopädische und traumatologische Behandlungen werden in der Regel von der Grundversicherung oder Unfallversicherung übernommen.`
     },
     {
       id: "faq_osteopathy",
       title: "FAQ – Osteopathie & Etiopathie",
-      content: `Für wen ist eine osteopathische Behandlung geeignet? Osteopathie ist für Menschen jeden Alters geeignet, von Neugeborenen bis zu Senioren. Wie viele Sitzungen sind notwendig? Die Anzahl der Sitzungen variiert je nach Beschwerdebild. In der Regel sind mehrere Sitzungen notwendig. Wird Osteopathie von der Krankenkasse bezahlt? Viele Zusatzversicherungen übernehmen einen Teil der Kosten für osteopathische Behandlungen. Die Kostenübernahme muss durch den Patienten vor dem Termin abgeklärt werden.`
+      content: `Osteopathie & Etiopathie
+
+Für wen ist eine osteopathische Behandlung geeignet?
+Osteopathie ist für Menschen jeden Alters geeignet, von Neugeborenen bis zu Senioren.
+
+Wie viele Sitzungen sind notwendig?
+Die Anzahl der Sitzungen variiert je nach Beschwerdebild. In der Regel sind mehrere Sitzungen notwendig.
+
+Wird Osteopathie von der Krankenkasse bezahlt?
+Viele Zusatzversicherungen übernehmen einen Teil der Kosten für osteopathische Behandlungen. Die Kostenübernahme muss durch den Patienten vor dem Termin abgeklärt werden.`
     },
     {
       id: "faq_rheumatology",
       title: "FAQ – Rheumatologie & Innere Medizin",
-      content: `Welche Erkrankungen behandelt die Rheumatologie? Unsere Rheumatologie behandelt entzündliche Gelenkerkrankungen, Weichteilrheuma und andere rheumatische Erkrankungen. Was umfasst die Innere Medizin bei functiomed? Die Innere Medizin befasst sich mit Erkrankungen der inneren Organe, wie Herz, Lunge, Leber und Nieren. Wie erfolgt die Diagnosestellung? Wir nutzen Laboruntersuchungen und bildgebende Verfahren, um eine genaue Diagnose zu stellen. Muss ich nüchtern zur Blutabnahme erscheinen? Für bestimmte Blutuntersuchungen ist es erforderlich, nüchtern zu sein. Wir informieren Sie rechtzeitig.`
+      content: `Rheumatologie & Innere Medizin
+
+Welche Erkrankungen behandelt die Rheumatologie?
+Unsere Rheumatologie behandelt entzündliche Gelenkerkrankungen, Weichteilrheuma und andere rheumatische Erkrankungen.
+
+Was umfasst die Innere Medizin bei functiomed?
+Die Innere Medizin befasst sich mit Erkrankungen der inneren Organe, wie Herz, Lunge, Leber und Nieren.
+
+Wie erfolgt die Diagnosestellung?
+Wir nutzen Laboruntersuchungen und bildgebende Verfahren, um eine genaue Diagnose zu stellen.
+
+Muss ich nüchtern zur Blutabnahme erscheinen?
+Für bestimmte Blutuntersuchungen ist es erforderlich, nüchtern zu sein. Wir informieren Sie rechtzeitig.`
     },
     {
       id: "faq_integrative",
       title: "FAQ – Integrative Medizin",
-      content: `Was versteht man unter integrativer Medizin? Integrative Medizin kombiniert schulmedizinische Verfahren mit komplementären Therapien für eine ganzheitliche Behandlung. Welche Therapien werden angeboten? Wir bieten Akupunktur, Homöopathie, Infusionstherapien, Colon Hydro Therapie, Ozontherapie, Orthomolekularmedizin, Ernährungsberatung und Mental Coaching an. Ist integrative Medizin wissenschaftlich anerkannt? Viele Methoden sind wissenschaftlich untersucht und ergänzen die Schulmedizin. Wie finde ich die passende Therapie für mich? In einem persönlichen Gespräch ermitteln wir gemeinsam die geeigneten Therapieansätze.`
+      content: `Integrative Medizin
+
+Was versteht man unter integrativer Medizin?
+Integrative Medizin kombiniert schulmedizinische Verfahren mit komplementären Therapien für eine ganzheitliche Behandlung.
+
+Welche Therapien werden angeboten?
+Wir bieten Akupunktur, Homöopathie, Infusionstherapien, Colon Hydro Therapie, Ozontherapie, Orthomolekularmedizin, Ernährungsberatung und Mental Coaching an.
+
+Ist integrative Medizin wissenschaftlich anerkannt?
+Viele Methoden sind wissenschaftlich untersucht und ergänzen die Schulmedizin.
+
+Wie finde ich die passende Therapie für mich?
+In einem persönlichen Gespräch ermitteln wir gemeinsam die geeigneten Therapieansätze.`
     },
     {
       id: "faq_complementary",
       title: "FAQ – Komplementärmedizin",
-      content: `Was beinhaltet die Komplementärmedizin bei functiomed? Unsere Komplementärmedizin umfasst Akupunktur, Homöopathie, medizinische Massagen und weitere alternative Heilmethoden. Wie läuft eine Akupunktursitzung ab? Feine Nadeln werden an spezifischen Punkten gesetzt, um den Energiefluss zu harmonisieren. Für Kinder oder alle die Nadeln nicht mögen und doch von den fernöstlichen Heilkünsten profitieren wollen, bieten wir Tuina an. Tuina ist eine chinesische Massageform, die auf der traditionellen chinesischen Medizin beruht. Mit diversen manuellen Techniken kann der Energie-Fluss mit Tuina positiv beeinflusst werden, Blockaden lösen sich auf und Körper und Seele kommen in Einklang. Ist Homöopathie für Kinder geeignet? Ja, Homöopathie kann auch bei Kindern angewendet werden. Bei Kindern verwendet man keine Nadeln. Welche Massagetechniken werden angeboten? Wir bieten klassische Massagen, Fußreflexzonenmassagen, Hot-Stone-Massagen, Japanische Gesichtsmassage, Lomi Lomi, Schwangerschaftsmassage, Anti Cellulite Massage, Manuelle Lymphdrainage, Shiatsu und Sportmassagen an.`
+      content: `Komplementärmedizin
+
+Was beinhaltet die Komplementärmedizin bei functiomed?
+Unsere Komplementärmedizin umfasst Akupunktur, Homöopathie, medizinische Massagen und weitere alternative Heilmethoden.
+
+Wie läuft eine Akupunktursitzung ab?
+Feine Nadeln werden an spezifischen Punkten gesetzt, um den Energiefluss zu harmonisieren. Für Kinder oder alle die Nadeln nicht mögen und doch von den fernöstlichen Heilkünsten profitieren wollen, bieten wir Tuina an. Tuina ist eine chinesische Massageform, die auf der traditionellen chinesischen Medizin beruht. Mit diversen manuellen Techniken kann der Energie-Fluss mit Tuina positiv beeinflusst werden, Blockaden lösen sich auf und Körper und Seele kommen in Einklang.
+
+Ist Homöopathie für Kinder geeignet?
+Ja, Homöopathie kann auch bei Kindern angewendet werden. Bei Kindern verwendet man keine Nadeln.
+
+Welche Massagetechniken werden angeboten?
+Wir bieten klassische Massagen, Fußreflexzonenmassagen, Hot-Stone-Massagen, Japanische Gesichtsmassage, Lomi Lomi, Schwangerschaftsmassage, Anti Cellulite Massage, Manuelle Lymphdrainage, Shiatsu und Sportmassagen an.`
+    },
+    
+    // ========== FAQs IN ENGLISH ==========
+    {
+      id: "faq_general_en",
+      title: "FAQ – General Practice Questions",
+      content: `General Practice Questions
+
+Are there parking facilities at functiomed?
+Yes, free parking spaces are available directly in front of the practice. Additionally, public parking spaces are located nearby.
+
+What are the practice opening hours?
+Our regular opening hours are Monday through Friday from 08:00 to 18:00. Appointments outside these hours are possible by arrangement.
+
+How can I make an appointment?
+Appointments can be made by phone, by email, or through the online tool on our website.
+
+What languages do the staff speak?
+Our team speaks German, English, French, and Italian, and many more. Please let us know your preferred language if needed.`
+    },
+    {
+      id: "faq_orthopedics_en",
+      title: "FAQ – Orthopedics & Traumatology / Sports Medicine",
+      content: `Orthopedics & Traumatology / Sports Medicine
+
+What does orthopedics treat at functiomed?
+Orthopedics at functiomed deals with diseases and injuries of the musculoskeletal system, including bones, joints, muscles, and tendons.
+
+What services does sports medicine offer?
+Our sports medicine includes prevention, diagnosis, and treatment of sports-related injuries. We support both recreational and professional athletes.
+
+Do I need a referral for an appointment?
+No, you can make an appointment directly with us. A referral is not mandatory unless you are in a special insurance model, such as the family doctor model.
+
+Are the costs covered by health insurance?
+The costs for orthopedic and traumatological treatments are usually covered by basic insurance or accident insurance.`
+    },
+    {
+      id: "faq_osteopathy_en",
+      title: "FAQ – Osteopathy & Etiopathy",
+      content: `Osteopathy & Etiopathy
+
+Who is osteopathic treatment suitable for?
+Osteopathy is suitable for people of all ages, from newborns to seniors.
+
+How many sessions are necessary?
+The number of sessions varies depending on the condition. Generally, several sessions are necessary.
+
+Is osteopathy paid for by health insurance?
+Many supplementary insurance policies cover part of the costs for osteopathic treatments. Cost coverage must be clarified by the patient before the appointment.`
+    },
+    {
+      id: "faq_rheumatology_en",
+      title: "FAQ – Rheumatology & Internal Medicine",
+      content: `Rheumatology & Internal Medicine
+
+What conditions does rheumatology treat?
+Our rheumatology treats inflammatory joint diseases, soft tissue rheumatism, and other rheumatic diseases.
+
+What does internal medicine at functiomed include?
+Internal medicine deals with diseases of the internal organs, such as heart, lungs, liver, and kidneys.
+
+How is diagnosis made?
+We use laboratory tests and imaging procedures to make an accurate diagnosis.
+
+Do I need to be fasting for blood tests?
+For certain blood tests, it is required to be fasting. We will inform you in advance.`
+    },
+    {
+      id: "faq_integrative_en",
+      title: "FAQ – Integrative Medicine",
+      content: `Integrative Medicine
+
+What is integrative medicine?
+Integrative medicine combines conventional medical procedures with complementary therapies for holistic treatment.
+
+What therapies are offered?
+We offer acupuncture, homeopathy, infusion therapies, colon hydrotherapy, ozone therapy, orthomolecular medicine, nutritional counseling, and mental coaching.
+
+Is integrative medicine scientifically recognized?
+Many methods are scientifically studied and complement conventional medicine.
+
+How do I find the right therapy for me?
+In a personal consultation, we determine together the appropriate therapeutic approaches.`
+    },
+    {
+      id: "faq_complementary_en",
+      title: "FAQ – Complementary Medicine",
+      content: `Complementary Medicine
+
+What does complementary medicine at functiomed include?
+Our complementary medicine includes acupuncture, homeopathy, medical massages, and other alternative healing methods.
+
+How does an acupuncture session work?
+Fine needles are placed at specific points to harmonize the energy flow. For children or anyone who doesn't like needles but still wants to benefit from Eastern healing arts, we offer Tuina. Tuina is a Chinese massage form based on traditional Chinese medicine. With various manual techniques, the energy flow can be positively influenced with Tuina, blockages are released, and body and soul come into harmony.
+
+Is homeopathy suitable for children?
+Yes, homeopathy can also be used in children. In children, no needles are used.
+
+What massage techniques are offered?
+We offer classical massages, foot reflexology massages, hot stone massages, Japanese facial massage, Lomi Lomi, pregnancy massage, anti-cellulite massage, manual lymph drainage, Shiatsu, and sports massages.`
+    },
+    
+    // ========== FAQs IN FRENCH ==========
+    {
+      id: "faq_general_fr",
+      title: "FAQ – Questions générales sur la pratique",
+      content: `Questions générales sur la pratique
+
+Y a-t-il des places de parking chez functiomed?
+Oui, des places de parking gratuites sont disponibles directement devant la pratique. De plus, des places de parking publiques se trouvent à proximité.
+
+Quels sont les horaires d'ouverture de la pratique?
+Nos horaires d'ouverture réguliers sont du lundi au vendredi de 08h00 à 18h00. Les rendez-vous en dehors de ces heures sont possibles sur rendez-vous.
+
+Comment puis-je prendre rendez-vous?
+Les rendez-vous peuvent être pris par téléphone, par e-mail ou via l'outil en ligne sur notre site web.
+
+Quelles langues parlent les membres du personnel?
+Notre équipe parle allemand, anglais, français et italien, et bien d'autres. Veuillez nous faire savoir votre langue préférée si nécessaire.`
+    },
+    {
+      id: "faq_orthopedics_fr",
+      title: "FAQ – Orthopédie & Traumatologie / Médecine du sport",
+      content: `Orthopédie & Traumatologie / Médecine du sport
+
+Que traite l'orthopédie chez functiomed?
+L'orthopédie chez functiomed traite les maladies et les blessures de l'appareil locomoteur, y compris les os, les articulations, les muscles et les tendons.
+
+Quels services offre la médecine du sport?
+Notre médecine du sport comprend la prévention, le diagnostic et le traitement des blessures liées au sport. Nous soutenons les athlètes récréatifs et professionnels.
+
+Ai-je besoin d'une référence pour un rendez-vous?
+Non, vous pouvez prendre rendez-vous directement avec nous. Une référence n'est pas obligatoire sauf si vous êtes dans un modèle d'assurance spécial, tel que le modèle de médecin de famille.
+
+Les coûts sont-ils couverts par l'assurance maladie?
+Les coûts des traitements orthopédiques et traumatologiques sont généralement couverts par l'assurance de base ou l'assurance accident.`
+    },
+    {
+      id: "faq_osteopathy_fr",
+      title: "FAQ – Ostéopathie & Étiopathie",
+      content: `Ostéopathie & Étiopathie
+
+Pour qui le traitement ostéopathique est-il adapté?
+L'ostéopathie est adaptée aux personnes de tous âges, des nouveau-nés aux seniors.
+
+Combien de séances sont nécessaires?
+Le nombre de séances varie selon la condition. En général, plusieurs séances sont nécessaires.
+
+L'ostéopathie est-elle payée par l'assurance maladie?
+De nombreuses assurances complémentaires couvrent une partie des coûts des traitements ostéopathiques. La couverture des coûts doit être clarifiée par le patient avant le rendez-vous.`
+    },
+    {
+      id: "faq_rheumatology_fr",
+      title: "FAQ – Rhumatologie & Médecine interne",
+      content: `Rhumatologie & Médecine interne
+
+Quelles maladies la rhumatologie traite-t-elle?
+Notre rhumatologie traite les maladies articulaires inflammatoires, les rhumatismes des tissus mous et d'autres maladies rhumatismales.
+
+Que comprend la médecine interne chez functiomed?
+La médecine interne traite les maladies des organes internes, tels que le cœur, les poumons, le foie et les reins.
+
+Comment le diagnostic est-il établi?
+Nous utilisons des tests de laboratoire et des procédures d'imagerie pour établir un diagnostic précis.
+
+Dois-je être à jeun pour les prises de sang?
+Pour certains tests sanguins, il est nécessaire d'être à jeun. Nous vous informerons à l'avance.`
+    },
+    {
+      id: "faq_integrative_fr",
+      title: "FAQ – Médecine intégrative",
+      content: `Médecine intégrative
+
+Qu'est-ce que la médecine intégrative?
+La médecine intégrative combine les procédures médicales conventionnelles avec les thérapies complémentaires pour un traitement holistique.
+
+Quelles thérapies sont proposées?
+Nous proposons l'acupuncture, l'homéopathie, les thérapies par perfusion, l'hydrothérapie du côlon, l'ozonothérapie, la médecine orthomoléculaire, le conseil nutritionnel et le coaching mental.
+
+La médecine intégrative est-elle scientifiquement reconnue?
+De nombreuses méthodes sont scientifiquement étudiées et complètent la médecine conventionnelle.
+
+Comment trouver la thérapie qui me convient?
+Lors d'une consultation personnelle, nous déterminons ensemble les approches thérapeutiques appropriées.`
+    },
+    {
+      id: "faq_complementary_fr",
+      title: "FAQ – Médecine complémentaire",
+      content: `Médecine complémentaire
+
+Que comprend la médecine complémentaire chez functiomed?
+Notre médecine complémentaire comprend l'acupuncture, l'homéopathie, les massages médicaux et d'autres méthodes de guérison alternatives.
+
+Comment se déroule une séance d'acupuncture?
+Des aiguilles fines sont placées à des points spécifiques pour harmoniser le flux d'énergie. Pour les enfants ou tous ceux qui n'aiment pas les aiguilles mais veulent quand même bénéficier des arts de guérison orientaux, nous proposons le Tuina. Le Tuina est une forme de massage chinois basée sur la médecine traditionnelle chinoise. Avec diverses techniques manuelles, le flux d'énergie peut être positivement influencé avec le Tuina, les blocages sont libérés et le corps et l'âme entrent en harmonie.
+
+L'homéopathie est-elle adaptée aux enfants?
+Oui, l'homéopathie peut également être utilisée chez les enfants. Chez les enfants, aucune aiguille n'est utilisée.
+
+Quelles techniques de massage sont proposées?
+Nous proposons des massages classiques, des massages de réflexologie plantaire, des massages aux pierres chaudes, des massages faciaux japonais, Lomi Lomi, massages de grossesse, massages anti-cellulite, drainage lymphatique manuel, Shiatsu et massages sportifs.`
     },
     
     // ========== HYALURONIC ACID INFORMATION ==========

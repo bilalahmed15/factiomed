@@ -542,7 +542,7 @@ app.get('/api/admin/knowledge-status', async (req, res) => {
 app.listen(PORT, async () => {
   console.log(`Server running on http://localhost:${PORT}`);
   
-  // Auto-crawl if knowledge base is empty (run in background after server starts)
+  // Check knowledge base status (but don't auto-crawl)
   setTimeout(async () => {
     try {
       const chunks = db.prepare('SELECT COUNT(*) as count FROM knowledge_chunks').get();
@@ -550,24 +550,15 @@ app.listen(PORT, async () => {
       
       if (chunkCount === 0) {
         console.log('\n⚠️  Knowledge base is empty!');
-        console.log('   Starting automatic crawl of Functiomed.ch website...');
-        console.log('   This may take a few minutes. The server will continue running.\n');
-        
-        try {
-          const targetUrl = process.env.TARGET_SITE || 'https://functiomed.ch';
-          const result = await crawlSite(targetUrl);
-          console.log(`\n✅ Crawl completed successfully!`);
-          console.log(`   Crawled ${result.pages} pages and stored ${result.chunks} chunks`);
-          console.log(`   Knowledge base is now ready to use.\n`);
-        } catch (error) {
-          console.error('\n❌ Error during automatic crawl:', error.message);
-          console.log('   You can manually trigger a crawl by:');
-          console.log('   - Running: npm run crawl');
-          console.log('   - Or POST to /api/admin/crawl endpoint\n');
-        }
+        console.log('   To populate the knowledge base, please:');
+        console.log('   - Run: npm run crawl');
+        console.log('   - Or POST to /api/admin/crawl endpoint\n');
+      } else {
+        const pages = db.prepare('SELECT COUNT(DISTINCT url) as count FROM knowledge_chunks').get();
+        console.log(`\n✅ Knowledge base loaded: ${pages?.count || 0} pages, ${chunkCount} chunks\n`);
       }
     } catch (error) {
-      console.error('Error during auto-crawl:', error);
+      console.error('Error checking knowledge base:', error);
     }
   }, 2000); // Wait 2 seconds after server starts
 });
