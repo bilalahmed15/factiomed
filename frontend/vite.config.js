@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://3.72.35.99:3001', // EC2 backend
+        target: 'http://3.72.72.25:3001', // EC2 backend
         changeOrigin: true,
         secure: false, // Allow self-signed certificates if needed
         configure: (proxy, _options) => {
