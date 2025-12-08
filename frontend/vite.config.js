@@ -7,7 +7,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://3.70.248.124:3001', // EC2 backend
         changeOrigin: true,
         configure: (proxy, _options) => {
           proxy.on('proxyRes', (proxyRes, req, res) => {

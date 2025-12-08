@@ -4,9 +4,8 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import TranscriptUpload from './TranscriptUpload';
 import QuickReplies from './QuickReplies';
+import { API_BASE } from '../config';
 import './ChatWidget.css';
-
-const API_BASE = '/api';
 
 function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);

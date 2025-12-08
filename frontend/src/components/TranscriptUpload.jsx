@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_BASE } from '../config';
 import './TranscriptUpload.css';
-
-const API_BASE = '/api';
 
 function TranscriptUpload({ onComplete, onCancel }) {
   const [file, setFile] = useState(null);
