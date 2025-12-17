@@ -516,13 +516,50 @@ let embeddingQueue = [];
 let isProcessingQueue = false;
 let modelPreloaded = false;
 
+// Check Ollama health before making requests
+async function checkOllamaHealth() {
+  try {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout (increased from 5s)
+    
+    const response = await fetch(`${ollamaUrl}/api/tags`, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    return response.ok;
+  } catch (error) {
+    // Don't log abort errors as warnings - they're expected timeouts
+    if (error.name !== 'AbortError') {
+      console.warn('Ollama health check failed:', error.message);
+    }
+    return false;
+  }
+}
+
 // Ensure embedding model is loaded before processing
 async function ensureModelLoaded() {
   if (modelPreloaded) {
-    return true;
+    // Quick health check
+    const isHealthy = await checkOllamaHealth();
+    if (!isHealthy) {
+      console.warn('Ollama health check failed, resetting model preload status');
+      modelPreloaded = false;
+    } else {
+      return true;
+    }
   }
   
   try {
+    // Check Ollama health first
+    const isHealthy = await checkOllamaHealth();
+    if (!isHealthy) {
+      console.warn('Ollama is not responding. Will retry...');
+      // Don't throw - let the retry logic handle it
+      return false;
+    }
     // Import the LLM service - it exports { default: LLMService } or { openai }
     const llmModule = await import('./llm.js');
     const llmService = llmModule.default || new llmModule.LLMService();
@@ -604,7 +641,23 @@ async function processEmbeddingQueue() {
   
   // Ensure model is loaded before processing
   if (!modelPreloaded) {
-    await ensureModelLoaded();
+    const loaded = await ensureModelLoaded();
+    if (!loaded) {
+      // If model loading failed, wait and retry
+      console.log('Waiting 10s before retrying model load...');
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      const retryLoaded = await ensureModelLoaded();
+      if (!retryLoaded) {
+        console.error('⚠️  Could not load embedding model. Embeddings will be skipped.');
+        // Clear the queue and reject all pending embeddings
+        while (embeddingQueue.length > 0) {
+          const { reject } = embeddingQueue.shift();
+          reject(new Error('Ollama service unavailable - embeddings skipped'));
+        }
+        isProcessingQueue = false;
+        return;
+      }
+    }
   }
   
   isProcessingQueue = true;
@@ -620,6 +673,15 @@ async function processEmbeddingQueue() {
     
     while (retries > 0 && !success) {
       try {
+        // Check Ollama health before each request
+        const isHealthy = await checkOllamaHealth();
+        if (!isHealthy) {
+          console.warn('Ollama health check failed, waiting 5s before retry...');
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          modelPreloaded = false;
+          await ensureModelLoaded();
+        }
+        
         const response = await openai.embeddings.create({
           model: process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text',
           input: text
@@ -627,8 +689,8 @@ async function processEmbeddingQueue() {
         resolve(response.data[0].embedding);
         success = true;
         
-        // Delay between requests to avoid overwhelming Ollama
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Increased delay between requests to avoid overwhelming Ollama (especially on slower instances)
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Increased from 800ms to 2000ms
       } catch (error) {
         retries--;
         
@@ -638,8 +700,10 @@ async function processEmbeddingQueue() {
           modelPreloaded = false;
           await ensureModelLoaded();
           
-          // Wait longer before retry
-          await new Promise(resolve => setTimeout(resolve, 3000));
+          // Wait longer before retry - exponential backoff
+          const backoffDelay = Math.pow(2, 3 - retries) * 2000; // 4s, 8s, 16s
+          console.log(`Waiting ${backoffDelay/1000}s before retry...`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
         } else if (retries === 0) {
           // Final failure - reject and log
           console.error(`✗ Failed to create embedding after 3 attempts: ${error.message}`);
@@ -654,8 +718,14 @@ async function processEmbeddingQueue() {
 
 // Create embeddings using Ollama (queued)
 async function createEmbedding(text) {
+  // Limit text length to prevent Ollama from crashing (max 2000 chars per embedding)
+  const maxTextLength = 2000;
+  const truncatedText = text.length > maxTextLength 
+    ? text.substring(0, maxTextLength) + '...' 
+    : text;
+  
   return new Promise((resolve, reject) => {
-    embeddingQueue.push({ text, resolve, reject });
+    embeddingQueue.push({ text: truncatedText, resolve, reject });
     processEmbeddingQueue();
   });
 }

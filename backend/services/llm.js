@@ -4,7 +4,7 @@ dotenv.config();
 
 // Ollama API configuration
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
-const CHAT_MODEL = process.env.OLLAMA_CHAT_MODEL || 'llama3.2'; // Default to llama3.2, can be changed to mistral, qwen, etc.
+const CHAT_MODEL = process.env.OLLAMA_CHAT_MODEL || 'llama3.2'; // Default to llama3.2 (available model)
 const EMBEDDING_MODEL = process.env.OLLAMA_EMBEDDING_MODEL || 'nomic-embed-text'; // For embeddings
 
 /**
@@ -48,9 +48,9 @@ class LLMService {
         requestBody.format = 'json';
       }
 
-      // Add timeout for faster failure (30 seconds for chat)
+      // Add timeout for chat completion (increased to 90 seconds for slower models/instances)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
       
       const response = await fetch(`${this.baseUrl}/api/chat`, {
         method: 'POST',
@@ -82,6 +82,12 @@ class LLMService {
       };
     } catch (error) {
       console.error('LLM chat completion error:', error);
+      
+      // Provide more helpful error messages
+      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+        throw new Error('Request timeout: Ollama is taking too long to respond. The model might be slow or the instance needs more resources. Consider using a smaller model or increasing timeout.');
+      }
+      
       throw error;
     }
   }
@@ -165,9 +171,9 @@ class LLMService {
         
         while (retries > 0) {
           try {
-            // Create abort controller for timeout (reduced to 15 seconds for faster failure)
+            // Create abort controller for timeout (increased to 60 seconds for slower instances)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout for embeddings
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout for embeddings
             
             const response = await fetch(`${this.baseUrl}/api/embeddings`, {
               method: 'POST',
@@ -217,8 +223,10 @@ class LLMService {
             
             // If it's a timeout or connection error, retry with exponential backoff
             if ((error.name === 'AbortError' || error.message.includes('EOF') || error.message.includes('ECONNREFUSED')) && retries > 1) {
-              const delay = Math.pow(2, 3 - retries) * 1000; // Exponential backoff: 1s, 2s, 4s
-              console.log(`Embedding request failed, retrying in ${delay}ms... (${retries - 1} attempts left)`);
+              const delay = Math.pow(2, 3 - retries) * 3000; // Exponential backoff: 3s, 6s, 12s (increased for stability)
+              console.log(`Embedding request failed (${error.message}), retrying in ${delay/1000}s... (${retries - 1} attempts left)`);
+              // Preload model again before retry
+              await this.preloadEmbeddingModel(modelToUse);
               await new Promise(resolve => setTimeout(resolve, delay));
               retries--;
               continue;
